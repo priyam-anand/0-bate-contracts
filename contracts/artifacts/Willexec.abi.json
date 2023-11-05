@@ -1,0 +1,90 @@
+{
+  "name": "Willexec",
+  "desc": "",
+  "methods": [
+    {
+      "name": "createWill",
+      "args": [
+        {
+          "name": "from",
+          "type": "address",
+          "desc": ""
+        },
+        {
+          "name": "assets",
+          "type": "byte[]",
+          "desc": ""
+        },
+        {
+          "name": "assetsAmount",
+          "type": "byte[]",
+          "desc": ""
+        },
+        {
+          "name": "assetsTo",
+          "type": "byte[]",
+          "desc": ""
+        },
+        {
+          "name": "nativeAmount",
+          "type": "byte[]",
+          "desc": ""
+        },
+        {
+          "name": "nativeTo",
+          "type": "byte[]",
+          "desc": ""
+        },
+        {
+          "name": "endTime",
+          "type": "uint64",
+          "desc": ""
+        }
+      ],
+      "desc": "",
+      "returns": {
+        "type": "uint64",
+        "desc": ""
+      }
+    },
+    {
+      "name": "increateEndTime",
+      "args": [
+        {
+          "name": "willId",
+          "type": "uint64",
+          "desc": ""
+        }
+      ],
+      "desc": "",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    },
+    {
+      "name": "executeWill",
+      "args": [
+        {
+          "name": "willId",
+          "type": "uint64",
+          "desc": ""
+        }
+      ],
+      "desc": "",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    },
+    {
+      "name": "createApplication",
+      "desc": "",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      },
+      "args": []
+    }
+  ]
+}
