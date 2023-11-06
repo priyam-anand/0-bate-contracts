@@ -24,32 +24,14 @@ class Willexec extends Contract {
 
   assetsHelper = GlobalStateMap<Asset, uint64>({ maxKeys: 8 });
 
-  assetOptIn(asset: Asset): void {
-    verifyTxn(this.txn, { sender: this.app.creator });
-    sendAssetTransfer({
-      assetReceiver: this.app.address,
-      xferAsset: asset,
-      assetAmount: 0,
-    });
-  }
-
-  createWill(
-    from: Address,
-    assets: bytes,
-    assetsAmount: bytes,
-    assetsTo: bytes,
-    nativeAmount: bytes,
-    nativeTo: bytes,
-    endTime: number
-  ): uint64 {
+  private verifyNative(nativeAmount: bytes, nativeTo: bytes): void {
     // verify native txn amounts etc
-    let rounds = len(nativeAmount) / 8;
+    const rounds = len(nativeAmount) / 8;
     assert(rounds === len(nativeTo) / 32);
     let totalCost =
       COST_PER_BOX + // cost of box
       MAX_BOX_SIZE * COST_PER_BYTE + // cost of data
-      64 * COST_PER_BYTE + // cost of key
-      64 * COST_PER_BYTE; // cost of keys
+      2 * 64 * COST_PER_BYTE; // cost of keys
 
     for (let i = 0; i < rounds; i = i + 1) {
       const currentAmountInBytes = extract3(nativeAmount, i * 8, 8);
@@ -57,10 +39,10 @@ class Willexec extends Contract {
     }
 
     verifyTxn(this.txnGroup[0], { receiver: this.app.address, amount: { greaterThanEqualTo: totalCost } });
-    // send these assets to a dex and store the output ????
+  }
 
-    // verify asset txns
-    rounds = len(assetsAmount) / 8;
+  private verifyAssets(assetsAmount: bytes, assetsTo: bytes, assets: bytes): void {
+    const rounds = len(assetsAmount) / 8;
     assert(rounds === len(assets) / 8 && rounds === len(assetsTo) / 32);
 
     for (let i = 0; i < rounds; i = i + 1) {
@@ -91,15 +73,73 @@ class Willexec extends Contract {
       // send these assets to a dex and store the output ????
       this.assetsHelper(currentAsset).delete();
     }
+  }
 
+  private createWillSanityChecks(
+    nativeAmount: bytes,
+    nativeTo: bytes,
+    assetsAmount: bytes,
+    assetsTo: bytes,
+    assets: bytes,
+    endTime: number
+  ): void {
+    this.verifyNative(nativeAmount, nativeTo);
+    this.verifyAssets(assetsAmount, assetsTo, assets);
     assert(endTime > globals.latestTimestamp);
+  }
+
+  private sendNative(to: Address, amount: number): void {
+    sendPayment({
+      amount: amount,
+      receiver: to,
+      fee: 1000,
+    });
+  }
+
+  private sendAsset(asset: Asset, to: Address, amount: number): void {
+    sendAssetTransfer({
+      xferAsset: asset,
+      assetAmount: amount,
+      assetReceiver: to,
+    });
+  }
+
+  private getCurrentId(): number {
+    return this.currentId.value;
+  }
+
+  private incrementCurrentId(): void {
+    this.currentId.value = this.getCurrentId() + 1;
+  }
+
+  assetOptIn(asset: Asset): void {
+    verifyTxn(this.txn, { sender: this.app.creator });
+    sendAssetTransfer({
+      assetReceiver: this.app.address,
+      xferAsset: asset,
+      assetAmount: 0,
+    });
+  }
+
+  createWill(
+    from: Address,
+    assets: bytes,
+    assetsAmount: bytes,
+    assetsTo: bytes,
+    nativeAmount: bytes,
+    nativeTo: bytes,
+    endTime: number
+  ): uint64 {
+    // necessary checks
+    this.createWillSanityChecks(nativeAmount, nativeTo, assetsAmount, assetsTo, assets, endTime);
 
     // store the will
-    this.currentId.value = this.currentId.value + 1;
+    this.incrementCurrentId();
+    const id = this.getCurrentId();
 
     const will: Will = {
       from: from,
-      id: this.currentId.value,
+      id: id,
       assets: assets,
       assetsAmount: assetsAmount,
       assetsTo: assetsTo,
@@ -109,7 +149,8 @@ class Willexec extends Contract {
     };
 
     this.wills(this.currentId.value).value = will;
-    return this.currentId.value;
+
+    return id;
   }
 
   increateEndTime(willId: number): void {
@@ -130,11 +171,7 @@ class Willexec extends Contract {
       const currentAmount = btoi(extract3(will.nativeAmount, i * 8, 8));
       const currentTo = Address.fromBytes(extract3(will.nativeTo, i * 32, 32));
 
-      sendPayment({
-        amount: currentAmount,
-        receiver: currentTo,
-        fee: 1000,
-      });
+      this.sendNative(currentTo, currentAmount);
     }
 
     // transfer assets
@@ -144,11 +181,10 @@ class Willexec extends Contract {
       const currentTo = Address.fromBytes(extract3(will.assetsTo, i * 32, 32));
       const currentAmount = btoi(extract3(will.assetsAmount, i * 8, 8));
 
-      sendAssetTransfer({
-        xferAsset: currentAsset,
-        assetAmount: currentAmount,
-        assetReceiver: currentTo,
-      });
+      this.sendAsset(currentAsset, currentTo, currentAmount);
     }
+
+    // delete used up box
+    this.wills(willId).delete();
   }
 }
