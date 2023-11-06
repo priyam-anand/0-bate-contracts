@@ -24,6 +24,15 @@ class Willexec extends Contract {
 
   assetsHelper = GlobalStateMap<Asset, uint64>({ maxKeys: 8 });
 
+  assetOptIn(asset: Asset): void {
+    verifyTxn(this.txn, { sender: this.app.creator });
+    sendAssetTransfer({
+      assetReceiver: this.app.address,
+      xferAsset: asset,
+      assetAmount: 0,
+    });
+  }
+
   createWill(
     from: Address,
     assets: bytes,
@@ -56,7 +65,7 @@ class Willexec extends Contract {
 
     for (let i = 0; i < rounds; i = i + 1) {
       const currentAssetInBytes = extract3(assets, i * 8, 8);
-      const currentAmountInBytes = extract3(assets, i * 8, 8);
+      const currentAmountInBytes = extract3(assetsAmount, i * 8, 8);
 
       const currentAsset = Asset.fromID(btoi(currentAssetInBytes));
       const currentAmount = btoi(currentAmountInBytes);
@@ -72,16 +81,13 @@ class Willexec extends Contract {
     for (let i = 0; i < rounds; i = i + 1) {
       const currentAssetInBytes = extract3(assets, i * 8, 8);
       const currentAsset = Asset.fromID(btoi(currentAssetInBytes));
-
       const value = this.assetsHelper(currentAsset).value;
       // verify asset transfers from this group
-
       verifyTxn(this.txnGroup[i + 1], {
         xferAsset: currentAsset,
         assetAmount: { greaterThanEqualTo: value },
         assetReceiver: this.app.address,
       });
-
       // send these assets to a dex and store the output ????
       this.assetsHelper(currentAsset).delete();
     }
@@ -127,6 +133,7 @@ class Willexec extends Contract {
       sendPayment({
         amount: currentAmount,
         receiver: currentTo,
+        fee: 1000,
       });
     }
 

@@ -22,6 +22,64 @@ switch create_NoOp NOT_IMPLEMENTED NOT_IMPLEMENTED NOT_IMPLEMENTED NOT_IMPLEMENT
 NOT_IMPLEMENTED:
 	err
 
+// assetOptIn(asset)void
+abi_route_assetOptIn:
+	// asset: asset
+	txna ApplicationArgs 1
+	btoi
+	txnas Assets
+
+	// execute assetOptIn(asset)void
+	callsub assetOptIn
+	int 1
+	return
+
+assetOptIn:
+	proto 1 0
+
+	// contracts/WillExec.algo.ts:28
+	// verifyTxn(this.txn, { sender: this.app.creator })
+	// verify sender
+	txn Sender
+	txna Applications 0
+	app_params_get AppCreator
+	assert
+	==
+	assert
+
+	// contracts/WillExec.algo.ts:29
+	// sendAssetTransfer({
+	//       assetReceiver: this.app.address,
+	//       xferAsset: asset,
+	//       assetAmount: 0,
+	//     })
+	itxn_begin
+	int axfer
+	itxn_field TypeEnum
+
+	// contracts/WillExec.algo.ts:30
+	// assetReceiver: this.app.address
+	global CurrentApplicationAddress
+	itxn_field AssetReceiver
+
+	// contracts/WillExec.algo.ts:31
+	// xferAsset: asset
+	frame_dig -1 // asset: asset
+	itxn_field XferAsset
+
+	// contracts/WillExec.algo.ts:32
+	// assetAmount: 0
+	int 0
+	itxn_field AssetAmount
+
+	// Fee field not set, defaulting to 0
+	int 0
+	itxn_field Fee
+
+	// Submit inner transaction
+	itxn_submit
+	retsub
+
 // createWill(uint64,bytes,bytes,bytes,bytes,bytes,address)uint64
 abi_route_createWill:
 	byte 0x; dupn 14 // push empty bytes to fill the stack frame for this subroutine's local variables
@@ -66,7 +124,7 @@ abi_route_createWill:
 createWill:
 	proto 22 0
 
-	// contracts/WillExec.algo.ts:37
+	// contracts/WillExec.algo.ts:46
 	// rounds = len(nativeAmount) / 8
 	frame_dig -5 // nativeAmount: bytes
 	len
@@ -74,7 +132,7 @@ createWill:
 	/
 	frame_bury -8 // rounds: uint64
 
-	// contracts/WillExec.algo.ts:38
+	// contracts/WillExec.algo.ts:47
 	// assert(rounds === len(nativeTo) / 32)
 	frame_dig -8 // rounds: uint64
 	frame_dig -6 // nativeTo: bytes
@@ -84,7 +142,7 @@ createWill:
 	==
 	assert
 
-	// contracts/WillExec.algo.ts:39
+	// contracts/WillExec.algo.ts:48
 	// totalCost =
 	//       COST_PER_BOX + // cost of box
 	//       MAX_BOX_SIZE * COST_PER_BYTE + // cost of data
@@ -93,7 +151,7 @@ createWill:
 	int 3330500
 	frame_bury -9 // totalCost: uint64
 
-	// contracts/WillExec.algo.ts:45
+	// contracts/WillExec.algo.ts:54
 	// i = 0
 	int 0
 	frame_bury -10 // i: uint64
@@ -104,7 +162,7 @@ for_0:
 	<
 	bz for_0_end
 
-	// contracts/WillExec.algo.ts:46
+	// contracts/WillExec.algo.ts:55
 	// currentAmountInBytes = extract3(nativeAmount, i * 8, 8)
 	frame_dig -5 // nativeAmount: bytes
 	frame_dig -10 // i: uint64
@@ -114,7 +172,7 @@ for_0:
 	extract3
 	frame_bury -11 // currentAmountInBytes: bytes
 
-	// contracts/WillExec.algo.ts:47
+	// contracts/WillExec.algo.ts:56
 	// totalCost = totalCost + btoi(currentAmountInBytes)
 	frame_dig -9 // totalCost: uint64
 	frame_dig -11 // currentAmountInBytes: bytes
@@ -122,7 +180,7 @@ for_0:
 	+
 	frame_bury -9 // totalCost: uint64
 
-	// contracts/WillExec.algo.ts:45
+	// contracts/WillExec.algo.ts:54
 	// i = i + 1
 	frame_dig -10 // i: uint64
 	int 1
@@ -131,7 +189,7 @@ for_0:
 	b for_0
 
 for_0_end:
-	// contracts/WillExec.algo.ts:50
+	// contracts/WillExec.algo.ts:59
 	// verifyTxn(this.txnGroup[0], { receiver: this.app.address, amount: { greaterThanEqualTo: totalCost } })
 	// verify receiver
 	int 0
@@ -147,7 +205,7 @@ for_0_end:
 	>=
 	assert
 
-	// contracts/WillExec.algo.ts:54
+	// contracts/WillExec.algo.ts:63
 	// rounds = len(assetsAmount) / 8
 	frame_dig -3 // assetsAmount: bytes
 	len
@@ -155,7 +213,7 @@ for_0_end:
 	/
 	frame_bury -8 // rounds: uint64
 
-	// contracts/WillExec.algo.ts:55
+	// contracts/WillExec.algo.ts:64
 	// assert(rounds === len(assets) / 8 && rounds === len(assetsTo) / 32)
 	frame_dig -8 // rounds: uint64
 	frame_dig -2 // assets: bytes
@@ -176,7 +234,7 @@ for_0_end:
 skip_and0:
 	assert
 
-	// contracts/WillExec.algo.ts:57
+	// contracts/WillExec.algo.ts:66
 	// i = 0
 	int 0
 	frame_bury -12 // i: uint64
@@ -187,7 +245,7 @@ for_1:
 	<
 	bz for_1_end
 
-	// contracts/WillExec.algo.ts:58
+	// contracts/WillExec.algo.ts:67
 	// currentAssetInBytes = extract3(assets, i * 8, 8)
 	frame_dig -2 // assets: bytes
 	frame_dig -12 // i: uint64
@@ -197,9 +255,9 @@ for_1:
 	extract3
 	frame_bury -13 // currentAssetInBytes: bytes
 
-	// contracts/WillExec.algo.ts:59
-	// currentAmountInBytes = extract3(assets, i * 8, 8)
-	frame_dig -2 // assets: bytes
+	// contracts/WillExec.algo.ts:68
+	// currentAmountInBytes = extract3(assetsAmount, i * 8, 8)
+	frame_dig -3 // assetsAmount: bytes
 	frame_dig -12 // i: uint64
 	int 8
 	*
@@ -207,20 +265,20 @@ for_1:
 	extract3
 	frame_bury -14 // currentAmountInBytes: bytes
 
-	// contracts/WillExec.algo.ts:61
+	// contracts/WillExec.algo.ts:70
 	// currentAsset = Asset.fromID(btoi(currentAssetInBytes))
 	frame_dig -13 // currentAssetInBytes: bytes
 	btoi
 	frame_bury -15 // currentAsset: asset
 
-	// contracts/WillExec.algo.ts:62
+	// contracts/WillExec.algo.ts:71
 	// currentAmount = btoi(currentAmountInBytes)
 	frame_dig -14 // currentAmountInBytes: bytes
 	btoi
 	frame_bury -16 // currentAmount: uint64
 
 	// if0_condition
-	// contracts/WillExec.algo.ts:64
+	// contracts/WillExec.algo.ts:73
 	// this.assetsHelper(currentAsset).exists
 	txna Applications 0
 	frame_dig -15 // currentAsset: asset
@@ -231,7 +289,7 @@ for_1:
 	bz if0_else
 
 	// if0_consequent
-	// contracts/WillExec.algo.ts:65
+	// contracts/WillExec.algo.ts:74
 	// value = this.assetsHelper(currentAsset).value + currentAmount
 	frame_dig -15 // currentAsset: asset
 	itob
@@ -240,7 +298,7 @@ for_1:
 	+
 	frame_bury -17 // value: uint64
 
-	// contracts/WillExec.algo.ts:66
+	// contracts/WillExec.algo.ts:75
 	// this.assetsHelper(currentAsset).value = value
 	frame_dig -15 // currentAsset: asset
 	itob
@@ -249,7 +307,7 @@ for_1:
 	b if0_end
 
 if0_else:
-	// contracts/WillExec.algo.ts:68
+	// contracts/WillExec.algo.ts:77
 	// this.assetsHelper(currentAsset).value = currentAmount
 	frame_dig -15 // currentAsset: asset
 	itob
@@ -257,7 +315,7 @@ if0_else:
 	app_global_put
 
 if0_end:
-	// contracts/WillExec.algo.ts:57
+	// contracts/WillExec.algo.ts:66
 	// i = i + 1
 	frame_dig -12 // i: uint64
 	int 1
@@ -266,7 +324,7 @@ if0_end:
 	b for_1
 
 for_1_end:
-	// contracts/WillExec.algo.ts:72
+	// contracts/WillExec.algo.ts:81
 	// i = 0
 	int 0
 	frame_bury -18 // i: uint64
@@ -277,7 +335,7 @@ for_2:
 	<
 	bz for_2_end
 
-	// contracts/WillExec.algo.ts:73
+	// contracts/WillExec.algo.ts:82
 	// currentAssetInBytes = extract3(assets, i * 8, 8)
 	frame_dig -2 // assets: bytes
 	frame_dig -18 // i: uint64
@@ -287,20 +345,20 @@ for_2:
 	extract3
 	frame_bury -19 // currentAssetInBytes: bytes
 
-	// contracts/WillExec.algo.ts:74
+	// contracts/WillExec.algo.ts:83
 	// currentAsset = Asset.fromID(btoi(currentAssetInBytes))
 	frame_dig -19 // currentAssetInBytes: bytes
 	btoi
 	frame_bury -20 // currentAsset: asset
 
-	// contracts/WillExec.algo.ts:76
+	// contracts/WillExec.algo.ts:84
 	// value = this.assetsHelper(currentAsset).value
 	frame_dig -20 // currentAsset: asset
 	itob
 	app_global_get
 	frame_bury -21 // value: uint64
 
-	// contracts/WillExec.algo.ts:79
+	// contracts/WillExec.algo.ts:86
 	// verifyTxn(this.txnGroup[i + 1], {
 	//         xferAsset: currentAsset,
 	//         assetAmount: { greaterThanEqualTo: value },
@@ -332,13 +390,13 @@ for_2:
 	==
 	assert
 
-	// contracts/WillExec.algo.ts:86
+	// contracts/WillExec.algo.ts:92
 	// this.assetsHelper(currentAsset).delete()
 	frame_dig -20 // currentAsset: asset
 	itob
 	app_global_del
 
-	// contracts/WillExec.algo.ts:72
+	// contracts/WillExec.algo.ts:81
 	// i = i + 1
 	frame_dig -18 // i: uint64
 	int 1
@@ -347,14 +405,14 @@ for_2:
 	b for_2
 
 for_2_end:
-	// contracts/WillExec.algo.ts:89
+	// contracts/WillExec.algo.ts:95
 	// assert(endTime > globals.latestTimestamp)
 	frame_dig -7 // endTime: uint64
 	global LatestTimestamp
 	>
 	assert
 
-	// contracts/WillExec.algo.ts:92
+	// contracts/WillExec.algo.ts:98
 	// this.currentId.value = this.currentId.value + 1
 	byte 0x6964 // "id"
 	byte 0x6964 // "id"
@@ -363,7 +421,7 @@ for_2_end:
 	+
 	app_global_put
 
-	// contracts/WillExec.algo.ts:94
+	// contracts/WillExec.algo.ts:100
 	// will: Will = {
 	//       from: from,
 	//       id: this.currentId.value,
@@ -430,7 +488,7 @@ for_2_end:
 	concat // concat head and tail
 	frame_bury -22 // will: Will
 
-	// contracts/WillExec.algo.ts:105
+	// contracts/WillExec.algo.ts:111
 	// this.wills(this.currentId.value).value = will
 	byte 0x6964 // "id"
 	app_global_get
@@ -441,7 +499,7 @@ for_2_end:
 	frame_dig -22 // will: Will
 	box_put
 
-	// contracts/WillExec.algo.ts:106
+	// contracts/WillExec.algo.ts:112
 	// return this.currentId.value;
 	byte 0x6964 // "id"
 	app_global_get
@@ -468,13 +526,13 @@ abi_route_increateEndTime:
 increateEndTime:
 	proto 3 0
 
-	// contracts/WillExec.algo.ts:110
+	// contracts/WillExec.algo.ts:116
 	// will = this.wills(willId).value
 	frame_dig -1 // willId: uint64
 	itob
 	frame_bury -2 // storage key//will
 
-	// contracts/WillExec.algo.ts:111
+	// contracts/WillExec.algo.ts:117
 	// assert(this.txn.sender === will.from)
 	txn Sender
 	frame_dig -2 // storage key//will
@@ -486,7 +544,7 @@ increateEndTime:
 	==
 	assert
 
-	// contracts/WillExec.algo.ts:112
+	// contracts/WillExec.algo.ts:118
 	// currentEndTime = this.wills(willId).value.endTime
 	frame_dig -1 // willId: uint64
 	itob
@@ -498,7 +556,7 @@ increateEndTime:
 	btoi
 	frame_bury -3 // currentEndTime: uint64
 
-	// contracts/WillExec.algo.ts:113
+	// contracts/WillExec.algo.ts:119
 	// this.wills(willId).value.endTime = currentEndTime + ONE_DAY * 365
 	frame_dig -1 // willId: uint64
 	itob
@@ -537,13 +595,13 @@ abi_route_executeWill:
 executeWill:
 	proto 10 0
 
-	// contracts/WillExec.algo.ts:117
+	// contracts/WillExec.algo.ts:123
 	// will = this.wills(willId).value
 	frame_dig -1 // willId: uint64
 	itob
 	frame_bury -2 // storage key//will
 
-	// contracts/WillExec.algo.ts:119
+	// contracts/WillExec.algo.ts:125
 	// assert(globals.latestTimestamp >= will.endTime)
 	global LatestTimestamp
 	frame_dig -2 // storage key//will
@@ -556,7 +614,7 @@ executeWill:
 	>=
 	assert
 
-	// contracts/WillExec.algo.ts:122
+	// contracts/WillExec.algo.ts:128
 	// rounds = len(will.nativeAmount) / 8
 	frame_dig -2 // storage key//will
 	box_get
@@ -582,7 +640,7 @@ executeWill:
 	/
 	frame_bury -3 // rounds: uint64
 
-	// contracts/WillExec.algo.ts:123
+	// contracts/WillExec.algo.ts:129
 	// i = 0
 	int 0
 	frame_bury -4 // i: uint64
@@ -593,7 +651,7 @@ for_3:
 	<
 	bz for_3_end
 
-	// contracts/WillExec.algo.ts:124
+	// contracts/WillExec.algo.ts:130
 	// currentAmount = btoi(extract3(will.nativeAmount, i * 8, 8))
 	frame_dig -2 // storage key//will
 	box_get
@@ -622,7 +680,7 @@ for_3:
 	btoi
 	frame_bury -5 // currentAmount: uint64
 
-	// contracts/WillExec.algo.ts:125
+	// contracts/WillExec.algo.ts:131
 	// currentTo = Address.fromBytes(extract3(will.nativeTo, i * 32, 32))
 	frame_dig -2 // storage key//will
 	box_get
@@ -650,33 +708,35 @@ for_3:
 	extract3
 	frame_bury -6 // currentTo: address
 
-	// contracts/WillExec.algo.ts:127
+	// contracts/WillExec.algo.ts:133
 	// sendPayment({
 	//         amount: currentAmount,
 	//         receiver: currentTo,
+	//         fee: 1000,
 	//       })
 	itxn_begin
 	int pay
 	itxn_field TypeEnum
 
-	// contracts/WillExec.algo.ts:128
+	// contracts/WillExec.algo.ts:134
 	// amount: currentAmount
 	frame_dig -5 // currentAmount: uint64
 	itxn_field Amount
 
-	// contracts/WillExec.algo.ts:129
+	// contracts/WillExec.algo.ts:135
 	// receiver: currentTo
 	frame_dig -6 // currentTo: address
 	itxn_field Receiver
 
-	// Fee field not set, defaulting to 0
-	int 0
+	// contracts/WillExec.algo.ts:136
+	// fee: 1000
+	int 1000
 	itxn_field Fee
 
 	// Submit inner transaction
 	itxn_submit
 
-	// contracts/WillExec.algo.ts:123
+	// contracts/WillExec.algo.ts:129
 	// i = i + 1
 	frame_dig -4 // i: uint64
 	int 1
@@ -685,7 +745,7 @@ for_3:
 	b for_3
 
 for_3_end:
-	// contracts/WillExec.algo.ts:134
+	// contracts/WillExec.algo.ts:141
 	// rounds = len(will.assets) / 32
 	frame_dig -2 // storage key//will
 	box_get
@@ -711,7 +771,7 @@ for_3_end:
 	/
 	frame_bury -3 // rounds: uint64
 
-	// contracts/WillExec.algo.ts:135
+	// contracts/WillExec.algo.ts:142
 	// i = 0
 	int 0
 	frame_bury -7 // i: uint64
@@ -722,7 +782,7 @@ for_4:
 	<
 	bz for_4_end
 
-	// contracts/WillExec.algo.ts:136
+	// contracts/WillExec.algo.ts:143
 	// currentAsset = Asset.fromID(btoi(extract3(will.assets, i * 32, 32)))
 	frame_dig -2 // storage key//will
 	box_get
@@ -751,7 +811,7 @@ for_4:
 	btoi
 	frame_bury -8 // currentAsset: asset
 
-	// contracts/WillExec.algo.ts:137
+	// contracts/WillExec.algo.ts:144
 	// currentTo = Address.fromBytes(extract3(will.assetsTo, i * 32, 32))
 	frame_dig -2 // storage key//will
 	box_get
@@ -779,7 +839,7 @@ for_4:
 	extract3
 	frame_bury -9 // currentTo: address
 
-	// contracts/WillExec.algo.ts:138
+	// contracts/WillExec.algo.ts:145
 	// currentAmount = btoi(extract3(will.assetsAmount, i * 8, 8))
 	frame_dig -2 // storage key//will
 	box_get
@@ -808,7 +868,7 @@ for_4:
 	btoi
 	frame_bury -10 // currentAmount: uint64
 
-	// contracts/WillExec.algo.ts:140
+	// contracts/WillExec.algo.ts:147
 	// sendAssetTransfer({
 	//         xferAsset: currentAsset,
 	//         assetAmount: currentAmount,
@@ -818,17 +878,17 @@ for_4:
 	int axfer
 	itxn_field TypeEnum
 
-	// contracts/WillExec.algo.ts:141
+	// contracts/WillExec.algo.ts:148
 	// xferAsset: currentAsset
 	frame_dig -8 // currentAsset: asset
 	itxn_field XferAsset
 
-	// contracts/WillExec.algo.ts:142
+	// contracts/WillExec.algo.ts:149
 	// assetAmount: currentAmount
 	frame_dig -10 // currentAmount: uint64
 	itxn_field AssetAmount
 
-	// contracts/WillExec.algo.ts:143
+	// contracts/WillExec.algo.ts:150
 	// assetReceiver: currentTo
 	frame_dig -9 // currentTo: address
 	itxn_field AssetReceiver
@@ -840,7 +900,7 @@ for_4:
 	// Submit inner transaction
 	itxn_submit
 
-	// contracts/WillExec.algo.ts:135
+	// contracts/WillExec.algo.ts:142
 	// i = i + 1
 	frame_dig -7 // i: uint64
 	int 1
@@ -862,11 +922,12 @@ create_NoOp:
 	err
 
 call_NoOp:
+	method "assetOptIn(asset)void"
 	method "createWill(address,byte[],byte[],byte[],byte[],byte[],uint64)uint64"
 	method "increateEndTime(uint64)void"
 	method "executeWill(uint64)void"
 	txna ApplicationArgs 0
-	match abi_route_createWill abi_route_increateEndTime abi_route_executeWill
+	match abi_route_assetOptIn abi_route_createWill abi_route_increateEndTime abi_route_executeWill
 	err
 
 process_static_tuple_element:

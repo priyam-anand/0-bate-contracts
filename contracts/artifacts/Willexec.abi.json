@@ -3,6 +3,21 @@
   "desc": "",
   "methods": [
     {
+      "name": "assetOptIn",
+      "args": [
+        {
+          "name": "asset",
+          "type": "asset",
+          "desc": ""
+        }
+      ],
+      "desc": "",
+      "returns": {
+        "type": "void",
+        "desc": ""
+      }
+    },
+    {
       "name": "createWill",
       "args": [
         {
