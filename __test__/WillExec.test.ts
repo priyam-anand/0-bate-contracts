@@ -1,4 +1,4 @@
-import { describe, test, beforeAll, beforeEach } from '@jest/globals';
+import { describe, test, beforeAll, beforeEach, expect } from '@jest/globals';
 import { algorandFixture } from '@algorandfoundation/algokit-utils/testing';
 import { algos, getOrCreateKmdWalletAccount } from '@algorandfoundation/algokit-utils';
 import algosdk, { Algodv2, AtomicTransactionComposer, bigIntToBytes, makeApplicationOptInTxnFromObject } from 'algosdk';
@@ -6,6 +6,7 @@ import * as algokit from '@algorandfoundation/algokit-utils';
 import fs from 'fs';
 import path from 'path';
 import { WillexecClient } from '../contracts/clients/WillexecClient';
+import { AssetBalancesResponse } from 'algosdk/dist/types/client/v2/indexer/models/types';
 
 const fixture = algorandFixture();
 
@@ -14,56 +15,47 @@ let sender: algosdk.Account;
 let receiver1: algosdk.Account;
 let receiver2: algosdk.Account;
 let assetIndex: number;
+const COST_PER_BYTE = 400;
+const COST_PER_BOX = 2500;
+const MAX_BOX_SIZE = 8192;
 
 const abi = JSON.parse(fs.readFileSync(path.join(__dirname, '../contracts/artifacts/Willexec.abi.json'), 'utf8'));
 const contract = new algosdk.ABIContract(abi);
 let algod: Algodv2;
+
 describe('Willexec', () => {
   beforeEach(fixture.beforeEach);
 
-  beforeAll(async () => {
-    await fixture.beforeEach();
-    const { testAccount, kmd } = fixture.context;
-    algod = fixture.context.algod;
-    appClient = new WillexecClient(
-      {
-        sender: testAccount,
-        resolveBy: 'id',
-        id: 0,
-      },
-      algod
-    );
-    receiver1 = await getOrCreateKmdWalletAccount(
-      {
-        name: 'receiver1',
-        fundWith: algos(10),
-      },
-      algod,
-      kmd
-    );
-    receiver2 = await getOrCreateKmdWalletAccount(
-      {
-        name: 'receiver2',
-        fundWith: algos(10),
-      },
-      algod,
-      kmd
-    );
-    sender = await getOrCreateKmdWalletAccount(
-      {
-        name: 'currentSender2',
-        fundWith: algos(10000),
-      },
-      algod,
-      kmd
-    );
-    await appClient.create.createApplication({});
-  });
+  const initalizeAccounts = async (kmd: algosdk.Kmd) => {
+    [receiver1, receiver2, sender] = await Promise.all([
+      getOrCreateKmdWalletAccount(
+        {
+          name: 'receiver1',
+          fundWith: algos(10),
+        },
+        algod,
+        kmd
+      ),
+      getOrCreateKmdWalletAccount(
+        {
+          name: 'receiver2',
+          fundWith: algos(10),
+        },
+        algod,
+        kmd
+      ),
+      getOrCreateKmdWalletAccount(
+        {
+          name: 'currentSender2',
+          fundWith: algos(10000),
+        },
+        algod,
+        kmd
+      ),
+    ]);
+  };
 
-  test('createWill ', async () => {
-    const from = sender.addr;
-    await appClient.appClient.fundAppAccount(algokit.microAlgos(100000));
-
+  const initalizeAssets = async () => {
     const suggestedParams = await algokit.getTransactionParams(undefined, algod);
     const txn = algosdk.makeAssetCreateTxnWithSuggestedParamsFromObject({
       from: sender.addr,
@@ -77,35 +69,71 @@ describe('Willexec', () => {
     const signedTx1 = txn.signTxn(sender.sk);
     await algod.sendRawTransaction(signedTx1).do();
     const assetResult = await algosdk.waitForConfirmation(algod, txn.txID().toString(), 3);
+    return assetResult['asset-index'];
+  };
 
-    const topk1 = algosdk.decodeAddress(receiver1.addr);
-    const topk2 = algosdk.decodeAddress(receiver2.addr);
-    const toToPass = [...topk1.publicKey].concat([...topk2.publicKey]) as unknown as Uint8Array;
-
-    const amount1 = bigIntToBytes(123321, 8);
-    const amount2 = bigIntToBytes(1111, 8);
-    const amountsToPass = [...amount1].concat([...amount2]) as unknown as Uint8Array;
-
-    const assetAmount1 = bigIntToBytes(100, 8);
-    const assetAmountToPass = assetAmount1;
-
-    const asset1Index = assetResult['asset-index'];
-    assetIndex = asset1Index;
-    const asset1 = bigIntToBytes(asset1Index, 8);
-    const assetsToPass = asset1;
+  const optIn = async (_assetIndex: number) => {
     await appClient.appClient.fundAppAccount(algokit.microAlgos(100000));
     await appClient.assetOptIn(
-      { asset: asset1Index },
+      { asset: _assetIndex },
       {
         sendParams: {
           fee: algokit.microAlgos(2000), // fee for itxn
         },
       }
     );
+  };
 
-    const COST_PER_BYTE = 400;
-    const COST_PER_BOX = 2500;
-    const MAX_BOX_SIZE = 8192;
+  const getTimeStamp = async () => {
+    const status = await algod.status().do();
+    const latestBlock = status['last-round'];
+    const blockInfo = await algod.block(latestBlock).do();
+    return BigInt(blockInfo.block.ts as number);
+  };
+
+  beforeAll(async () => {
+    await fixture.beforeEach();
+    const { testAccount, kmd } = fixture.context;
+    algod = fixture.context.algod;
+    appClient = new WillexecClient(
+      {
+        sender: testAccount,
+        resolveBy: 'id',
+        id: 0,
+      },
+      algod
+    );
+    await initalizeAccounts(kmd);
+    await appClient.create.createApplication({});
+    assetIndex = await initalizeAssets();
+  });
+
+  test('createWill ', async () => {
+    const from = sender.addr;
+
+    // set mbr for boxes
+    await appClient.appClient.fundAppAccount(algokit.microAlgos(100000));
+
+    // format receiver addresses
+    const topk1 = algosdk.decodeAddress(receiver1.addr);
+    const topk2 = algosdk.decodeAddress(receiver2.addr);
+    const toToPass = [...topk1.publicKey].concat([...topk2.publicKey]) as unknown as Uint8Array;
+
+    // format amount of native tokens
+    const amount1 = bigIntToBytes(123321, 8);
+    const amount2 = bigIntToBytes(1111, 8);
+    const amountsToPass = [...amount1].concat([...amount2]) as unknown as Uint8Array;
+
+    // foramt amount of assets
+    const assetAmount1 = bigIntToBytes(100, 8);
+    const assetAmountToPass = assetAmount1;
+
+    // format assets
+    const asset1 = bigIntToBytes(assetIndex, 8);
+    const assetsToPass = asset1;
+
+    // opt in the asset
+    await optIn(assetIndex);
 
     const totalCost =
       COST_PER_BOX + // cost of box
@@ -114,6 +142,8 @@ describe('Willexec', () => {
       64 * COST_PER_BYTE + // cost of key
       123321 +
       1111;
+
+    // create transactions
     const payTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
       from: sender.addr,
       to: (await appClient.appClient.getAppReference()).appAddress,
@@ -124,8 +154,8 @@ describe('Willexec', () => {
       from: sender.addr,
       suggestedParams: await algokit.getTransactionParams(undefined, algod),
       to: (await appClient.appClient.getAppReference()).appAddress,
-      assetIndex: asset1Index,
-      amount: 1000,
+      assetIndex,
+      amount: 100,
     });
     const senderSIgner = algosdk.makeBasicAccountTransactionSigner(sender);
 
@@ -134,12 +164,11 @@ describe('Willexec', () => {
       appIndex: Number((await appClient.appClient.getAppReference()).appId),
       name: bigIntToBytes(1, 8),
     });
-    const status = await algod.status().do();
-    const latestBlock = status['last-round'];
-    const blockInfo = await algod.block(latestBlock).do();
-    const timestamp = BigInt(blockInfo['block']['ts'] as number);
-    console.log(typeof blockInfo['block']['ts'], blockInfo['block']['ts']);
 
+    // get timestamp for params
+    const timestamp = await getTimeStamp();
+
+    // build txn
     atc.addTransaction({ txn: payTxn, signer: senderSIgner });
     atc.addTransaction({ txn: assetTransferTxn, signer: senderSIgner });
     atc.addMethodCall({
@@ -160,18 +189,21 @@ describe('Willexec', () => {
       boxes,
     });
 
-    const result = await atc.execute(algod, 4);
-    console.log(result.methodResults[0].returnValue);
+    await atc.execute(algod, 4);
+
+    const assetResult = await algod
+      .accountAssetInformation((await appClient.appClient.getAppReference()).appAddress, assetIndex)
+      .do();
+    const algoResult = await algod.accountInformation((await appClient.appClient.getAppReference()).appAddress).do();
+
+    expect(assetResult['asset-holding'].amount === 100);
+    expect(algoResult.amount - algoResult['min-balance'] === 3370832);
   });
 
   test('extendTime ', async () => {});
 
   test('execute will ', async () => {
-    const status = await algod.status().do();
-    const latestBlock = status['last-round'];
-    const blockInfo = await algod.block(latestBlock).do();
-    const timestamp = BigInt(blockInfo['block']['ts'] as number);
-
+    const timestamp = await getTimeStamp();
     await algod.setBlockOffsetTimestamp(Number(timestamp + BigInt(10))).do();
 
     makeApplicationOptInTxnFromObject({
