@@ -4,9 +4,13 @@
   "license": "MIT",
   "scripts": {
     "generate-client": "algokitgen generate -a contracts/artifacts/Willexec.json -o contracts/clients/WillexecClient.ts",
-    "compile-contract": "tealscript contracts/WillExec.algo.ts contracts/artifacts",
+    "generate-client-mock": "algokitgen generate -a contracts/artifacts/ConstantProductAMM.json -o contracts/clients/ConstantProductAMMClient.ts",
+    "compile-contract": "tealscript contracts/*.algo.ts contracts/artifacts",
     "generate-components": "algokit-generate-component contracts/artifacts/Willexec.json contracts/artifacts/components",
-    "build": "npm run compile-contract && npm run generate-client",
+    "compile-mock": "tealscript contracts/mock/*.algo.ts contracts/artifacts",
+    "build:src": "npm run compile-contract && npm run generate-client",
+    "build:mock": "npm run compile-mock && npm run generate-client-mock",
+    "build": "npm run build:src && npm run build:mock",
     "test": "npm run build && jest",
     "lint": "eslint . --ext .ts",
     "fix": "eslint . --ext .ts --fix"
