@@ -92,7 +92,6 @@ class Willexec extends Contract {
     sendPayment({
       amount: amount,
       receiver: to,
-      fee: 1000,
     });
   }
 

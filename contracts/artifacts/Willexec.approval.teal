@@ -344,7 +344,6 @@ sendNative:
 	// sendPayment({
 	//       amount: amount,
 	//       receiver: to,
-	//       fee: 1000,
 	//     })
 	itxn_begin
 	int pay
@@ -360,9 +359,8 @@ sendNative:
 	frame_dig -1 // to: address
 	itxn_field Receiver
 
-	// contracts/WillExec.algo.ts:95
-	// fee: 1000
-	int 1000
+	// Fee field not set, defaulting to 0
+	int 0
 	itxn_field Fee
 
 	// Submit inner transaction
@@ -372,7 +370,7 @@ sendNative:
 sendAsset:
 	proto 3 0
 
-	// contracts/WillExec.algo.ts:100
+	// contracts/WillExec.algo.ts:99
 	// sendAssetTransfer({
 	//       xferAsset: asset,
 	//       assetAmount: amount,
@@ -382,17 +380,17 @@ sendAsset:
 	int axfer
 	itxn_field TypeEnum
 
-	// contracts/WillExec.algo.ts:101
+	// contracts/WillExec.algo.ts:100
 	// xferAsset: asset
 	frame_dig -1 // asset: asset
 	itxn_field XferAsset
 
-	// contracts/WillExec.algo.ts:102
+	// contracts/WillExec.algo.ts:101
 	// assetAmount: amount
 	frame_dig -3 // amount: uint64
 	itxn_field AssetAmount
 
-	// contracts/WillExec.algo.ts:103
+	// contracts/WillExec.algo.ts:102
 	// assetReceiver: to
 	frame_dig -2 // to: address
 	itxn_field AssetReceiver
@@ -408,7 +406,7 @@ sendAsset:
 getCurrentId:
 	proto 0 1
 
-	// contracts/WillExec.algo.ts:108
+	// contracts/WillExec.algo.ts:107
 	// return this.currentId.value;
 	byte 0x6964 // "id"
 	app_global_get
@@ -417,7 +415,7 @@ getCurrentId:
 incrementCurrentId:
 	proto 0 0
 
-	// contracts/WillExec.algo.ts:112
+	// contracts/WillExec.algo.ts:111
 	// this.currentId.value = this.getCurrentId() + 1
 	byte 0x6964 // "id"
 	callsub getCurrentId
@@ -441,7 +439,7 @@ abi_route_assetOptIn:
 assetOptIn:
 	proto 1 0
 
-	// contracts/WillExec.algo.ts:116
+	// contracts/WillExec.algo.ts:115
 	// verifyTxn(this.txn, { sender: this.app.creator })
 	// verify sender
 	txn Sender
@@ -451,7 +449,7 @@ assetOptIn:
 	==
 	assert
 
-	// contracts/WillExec.algo.ts:117
+	// contracts/WillExec.algo.ts:116
 	// sendAssetTransfer({
 	//       assetReceiver: this.app.address,
 	//       xferAsset: asset,
@@ -461,17 +459,17 @@ assetOptIn:
 	int axfer
 	itxn_field TypeEnum
 
-	// contracts/WillExec.algo.ts:118
+	// contracts/WillExec.algo.ts:117
 	// assetReceiver: this.app.address
 	global CurrentApplicationAddress
 	itxn_field AssetReceiver
 
-	// contracts/WillExec.algo.ts:119
+	// contracts/WillExec.algo.ts:118
 	// xferAsset: asset
 	frame_dig -1 // asset: asset
 	itxn_field XferAsset
 
-	// contracts/WillExec.algo.ts:120
+	// contracts/WillExec.algo.ts:119
 	// assetAmount: 0
 	int 0
 	itxn_field AssetAmount
@@ -528,7 +526,7 @@ abi_route_createWill:
 createWill:
 	proto 9 0
 
-	// contracts/WillExec.algo.ts:134
+	// contracts/WillExec.algo.ts:133
 	// this.createWillSanityChecks(nativeAmount, nativeTo, assetsAmount, assetsTo, assets, endTime)
 	frame_dig -7 // endTime: uint64
 	frame_dig -2 // assets: bytes
@@ -538,16 +536,16 @@ createWill:
 	frame_dig -5 // nativeAmount: bytes
 	callsub createWillSanityChecks
 
-	// contracts/WillExec.algo.ts:137
+	// contracts/WillExec.algo.ts:136
 	// this.incrementCurrentId()
 	callsub incrementCurrentId
 
-	// contracts/WillExec.algo.ts:138
+	// contracts/WillExec.algo.ts:137
 	// id = this.getCurrentId()
 	callsub getCurrentId
 	frame_bury -8 // id: uint64
 
-	// contracts/WillExec.algo.ts:140
+	// contracts/WillExec.algo.ts:139
 	// will: Will = {
 	//       from: from,
 	//       id: id,
@@ -613,7 +611,7 @@ createWill:
 	concat // concat head and tail
 	frame_bury -9 // will: Will
 
-	// contracts/WillExec.algo.ts:151
+	// contracts/WillExec.algo.ts:150
 	// this.wills(this.currentId.value).value = will
 	byte 0x6964 // "id"
 	app_global_get
@@ -624,7 +622,7 @@ createWill:
 	frame_dig -9 // will: Will
 	box_put
 
-	// contracts/WillExec.algo.ts:153
+	// contracts/WillExec.algo.ts:152
 	// return id;
 	frame_dig -8 // id: uint64
 	itob
@@ -650,13 +648,13 @@ abi_route_increateEndTime:
 increateEndTime:
 	proto 3 0
 
-	// contracts/WillExec.algo.ts:157
+	// contracts/WillExec.algo.ts:156
 	// will = this.wills(willId).value
 	frame_dig -1 // willId: uint64
 	itob
 	frame_bury -2 // storage key//will
 
-	// contracts/WillExec.algo.ts:158
+	// contracts/WillExec.algo.ts:157
 	// assert(this.txn.sender === will.from)
 	txn Sender
 	frame_dig -2 // storage key//will
@@ -668,7 +666,7 @@ increateEndTime:
 	==
 	assert
 
-	// contracts/WillExec.algo.ts:159
+	// contracts/WillExec.algo.ts:158
 	// currentEndTime = this.wills(willId).value.endTime
 	frame_dig -1 // willId: uint64
 	itob
@@ -680,7 +678,7 @@ increateEndTime:
 	btoi
 	frame_bury -3 // currentEndTime: uint64
 
-	// contracts/WillExec.algo.ts:160
+	// contracts/WillExec.algo.ts:159
 	// this.wills(willId).value.endTime = currentEndTime + ONE_DAY * 365
 	frame_dig -1 // willId: uint64
 	itob
@@ -719,13 +717,13 @@ abi_route_executeWill:
 executeWill:
 	proto 10 0
 
-	// contracts/WillExec.algo.ts:164
+	// contracts/WillExec.algo.ts:163
 	// will = this.wills(willId).value
 	frame_dig -1 // willId: uint64
 	itob
 	frame_bury -2 // storage key//will
 
-	// contracts/WillExec.algo.ts:166
+	// contracts/WillExec.algo.ts:165
 	// assert(globals.latestTimestamp >= will.endTime)
 	global LatestTimestamp
 	frame_dig -2 // storage key//will
@@ -738,7 +736,7 @@ executeWill:
 	>=
 	assert
 
-	// contracts/WillExec.algo.ts:169
+	// contracts/WillExec.algo.ts:168
 	// rounds = len(will.nativeAmount) / 8
 	frame_dig -2 // storage key//will
 	box_get
@@ -764,7 +762,7 @@ executeWill:
 	/
 	frame_bury -3 // rounds: uint64
 
-	// contracts/WillExec.algo.ts:170
+	// contracts/WillExec.algo.ts:169
 	// i = 0
 	int 0
 	frame_bury -4 // i: uint64
@@ -775,7 +773,7 @@ for_3:
 	<
 	bz for_3_end
 
-	// contracts/WillExec.algo.ts:171
+	// contracts/WillExec.algo.ts:170
 	// currentAmount = btoi(extract3(will.nativeAmount, i * 8, 8))
 	frame_dig -2 // storage key//will
 	box_get
@@ -804,7 +802,7 @@ for_3:
 	btoi
 	frame_bury -5 // currentAmount: uint64
 
-	// contracts/WillExec.algo.ts:172
+	// contracts/WillExec.algo.ts:171
 	// currentTo = Address.fromBytes(extract3(will.nativeTo, i * 32, 32))
 	frame_dig -2 // storage key//will
 	box_get
@@ -832,13 +830,13 @@ for_3:
 	extract3
 	frame_bury -6 // currentTo: address
 
-	// contracts/WillExec.algo.ts:174
+	// contracts/WillExec.algo.ts:173
 	// this.sendNative(currentTo, currentAmount)
 	frame_dig -5 // currentAmount: uint64
 	frame_dig -6 // currentTo: address
 	callsub sendNative
 
-	// contracts/WillExec.algo.ts:170
+	// contracts/WillExec.algo.ts:169
 	// i = i + 1
 	frame_dig -4 // i: uint64
 	int 1
@@ -847,7 +845,7 @@ for_3:
 	b for_3
 
 for_3_end:
-	// contracts/WillExec.algo.ts:178
+	// contracts/WillExec.algo.ts:177
 	// rounds = len(will.assets) / 8
 	frame_dig -2 // storage key//will
 	box_get
@@ -873,7 +871,7 @@ for_3_end:
 	/
 	frame_bury -3 // rounds: uint64
 
-	// contracts/WillExec.algo.ts:179
+	// contracts/WillExec.algo.ts:178
 	// i = 0
 	int 0
 	frame_bury -7 // i: uint64
@@ -884,7 +882,7 @@ for_4:
 	<
 	bz for_4_end
 
-	// contracts/WillExec.algo.ts:180
+	// contracts/WillExec.algo.ts:179
 	// currentAsset = Asset.fromID(btoi(extract3(will.assets, i * 8, 8)))
 	frame_dig -2 // storage key//will
 	box_get
@@ -913,7 +911,7 @@ for_4:
 	btoi
 	frame_bury -8 // currentAsset: asset
 
-	// contracts/WillExec.algo.ts:181
+	// contracts/WillExec.algo.ts:180
 	// currentTo = Address.fromBytes(extract3(will.assetsTo, i * 32, 32))
 	frame_dig -2 // storage key//will
 	box_get
@@ -941,7 +939,7 @@ for_4:
 	extract3
 	frame_bury -9 // currentTo: address
 
-	// contracts/WillExec.algo.ts:182
+	// contracts/WillExec.algo.ts:181
 	// currentAmount = btoi(extract3(will.assetsAmount, i * 8, 8))
 	frame_dig -2 // storage key//will
 	box_get
@@ -970,14 +968,14 @@ for_4:
 	btoi
 	frame_bury -10 // currentAmount: uint64
 
-	// contracts/WillExec.algo.ts:184
+	// contracts/WillExec.algo.ts:183
 	// this.sendAsset(currentAsset, currentTo, currentAmount)
 	frame_dig -10 // currentAmount: uint64
 	frame_dig -9 // currentTo: address
 	frame_dig -8 // currentAsset: asset
 	callsub sendAsset
 
-	// contracts/WillExec.algo.ts:179
+	// contracts/WillExec.algo.ts:178
 	// i = i + 1
 	frame_dig -7 // i: uint64
 	int 1
@@ -986,7 +984,7 @@ for_4:
 	b for_4
 
 for_4_end:
-	// contracts/WillExec.algo.ts:188
+	// contracts/WillExec.algo.ts:187
 	// this.wills(willId).delete()
 	frame_dig -1 // willId: uint64
 	itob
