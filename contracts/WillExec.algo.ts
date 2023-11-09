@@ -175,9 +175,9 @@ class Willexec extends Contract {
     }
 
     // transfer assets
-    rounds = len(will.assets) / 32;
+    rounds = len(will.assets) / 8;
     for (let i = 0; i < rounds; i = i + 1) {
-      const currentAsset = Asset.fromID(btoi(extract3(will.assets, i * 32, 32)));
+      const currentAsset = Asset.fromID(btoi(extract3(will.assets, i * 8, 8)));
       const currentTo = Address.fromBytes(extract3(will.assetsTo, i * 32, 32));
       const currentAmount = btoi(extract3(will.assetsAmount, i * 8, 8));
 

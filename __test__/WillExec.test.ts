@@ -6,7 +6,6 @@ import * as algokit from '@algorandfoundation/algokit-utils';
 import fs from 'fs';
 import path from 'path';
 import { WillexecClient } from '../contracts/clients/WillexecClient';
-import { AssetBalancesResponse } from 'algosdk/dist/types/client/v2/indexer/models/types';
 
 const fixture = algorandFixture();
 
@@ -200,8 +199,6 @@ describe('Willexec', () => {
     expect(algoResult.amount - algoResult['min-balance'] === 3370832);
   });
 
-  test('extendTime ', async () => {});
-
   test('execute will ', async () => {
     const timestamp = await getTimeStamp();
     await algod.setBlockOffsetTimestamp(Number(timestamp + BigInt(10))).do();
@@ -218,19 +215,40 @@ describe('Willexec', () => {
       name: bigIntToBytes(1, 8),
     });
     const senderSIgner = algosdk.makeBasicAccountTransactionSigner(sender);
+
+    const xferTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+      from: receiver1.addr,
+      to: receiver1.addr,
+      suggestedParams: await algokit.getTransactionParams(undefined, algod),
+      assetIndex,
+      amount: 0,
+    });
+
+    await algokit.sendTransaction({ transaction: xferTxn, from: receiver1 }, algod);
+    await algosdk.waitForConfirmation(algod, xferTxn.txID(), 3);
+
     atc.addMethodCall({
       appID: (await appClient.appClient.getAppReference()).appId as number,
       method: contract.getMethodByName('executeWill'),
       methodArgs: [1],
       sender: sender.addr,
       signer: senderSIgner,
-      suggestedParams: await algokit.getTransactionParams(undefined, algod),
+      suggestedParams: { ...(await algokit.getTransactionParams(undefined, algod)), fee: 5000 },
       boxes,
       appForeignAssets: [assetIndex],
       appAccounts: [receiver1.addr, receiver2.addr],
     });
 
-    const result = await atc.execute(algod, 4);
-    console.log(result);
+    const initialAlgoResult1 = await algod.accountInformation(receiver1.addr).do();
+    const initialAlgoResult2 = await algod.accountInformation(receiver2.addr).do();
+
+    await atc.execute(algod, 4);
+    const assetResult = await algod.accountAssetInformation(receiver1.addr, assetIndex).do();
+    const algoResult1 = await algod.accountInformation(receiver1.addr).do();
+    const algoResult2 = await algod.accountInformation(receiver2.addr).do();
+
+    expect(assetResult['asset-holding'].amount === 100);
+    expect((((algoResult1.amount as number) - initialAlgoResult1.amount) as number) === 123321);
+    expect((((algoResult2.amount as number) - initialAlgoResult2.amount) as number) === 1111);
   });
 });

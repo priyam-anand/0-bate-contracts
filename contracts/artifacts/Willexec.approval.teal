@@ -848,7 +848,7 @@ for_3:
 
 for_3_end:
 	// contracts/WillExec.algo.ts:178
-	// rounds = len(will.assets) / 32
+	// rounds = len(will.assets) / 8
 	frame_dig -2 // storage key//will
 	box_get
 	assert
@@ -869,7 +869,7 @@ for_3_end:
 	extract3
 	extract 2 0
 	len
-	int 32
+	int 8
 	/
 	frame_bury -3 // rounds: uint64
 
@@ -885,7 +885,7 @@ for_4:
 	bz for_4_end
 
 	// contracts/WillExec.algo.ts:180
-	// currentAsset = Asset.fromID(btoi(extract3(will.assets, i * 32, 32)))
+	// currentAsset = Asset.fromID(btoi(extract3(will.assets, i * 8, 8)))
 	frame_dig -2 // storage key//will
 	box_get
 	assert
@@ -906,9 +906,9 @@ for_4:
 	extract3
 	extract 2 0
 	frame_dig -7 // i: uint64
-	int 32
+	int 8
 	*
-	int 32
+	int 8
 	extract3
 	btoi
 	frame_bury -8 // currentAsset: asset
