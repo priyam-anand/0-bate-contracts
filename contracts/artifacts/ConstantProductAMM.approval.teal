@@ -451,7 +451,7 @@ bootstrap:
 	log
 	retsub
 
-// mint(asset,asset,asset,axfer,axfer)void
+// mint(asset,asset,asset,axfer,axfer)uint64
 abi_route_mint:
 	byte 0x // push empty bytes to fill the stack frame for this subroutine's local variables
 
@@ -490,7 +490,7 @@ abi_route_mint:
 	==
 	assert
 
-	// execute mint(asset,asset,asset,axfer,axfer)void
+	// execute mint(asset,asset,asset,axfer,axfer)uint64
 	callsub mint
 	int 1
 	return
@@ -527,7 +527,7 @@ mint:
 	// contracts/mock/ConstantProductAMM.algo.ts:107
 	// verifyTxn(aXfer, {
 	//       sender: this.txn.sender,
-	//       assetAmount: { greaterThan: 0 },
+	//       assetAmount: { greaterThanEqualTo: 0 },
 	//       assetReceiver: this.app.address,
 	//       xferAsset: aAsset,
 	//     })
@@ -542,7 +542,7 @@ mint:
 	frame_dig -1 // aXfer: axfer
 	gtxns AssetAmount
 	int 0
-	>
+	>=
 	assert
 
 	// verify assetReceiver
@@ -563,7 +563,7 @@ mint:
 	// contracts/mock/ConstantProductAMM.algo.ts:115
 	// verifyTxn(bXfer, {
 	//       sender: this.txn.sender,
-	//       assetAmount: { greaterThan: 0 },
+	//       assetAmount: { greaterThanEqualTo: 0 },
 	//       assetReceiver: this.app.address,
 	//       xferAsset: bAsset,
 	//     })
@@ -578,7 +578,7 @@ mint:
 	frame_dig -2 // bXfer: axfer
 	gtxns AssetAmount
 	int 0
-	>
+	>=
 	assert
 
 	// verify assetReceiver
@@ -596,7 +596,7 @@ mint:
 	assert
 
 	// if0_condition
-	// contracts/mock/ConstantProductAMM.algo.ts:123
+	// contracts/mock/ConstantProductAMM.algo.ts:124
 	// this.app.address.assetBalance(aAsset) === aXfer.assetAmount &&
 	//       this.app.address.assetBalance(bAsset) === bXfer.assetAmount
 	global CurrentApplicationAddress
@@ -621,17 +621,18 @@ skip_and0:
 	bz if0_else
 
 	// if0_consequent
-	// contracts/mock/ConstantProductAMM.algo.ts:126
-	// this.tokensToMintIntial(aXfer.assetAmount, bXfer.assetAmount)
+	// contracts/mock/ConstantProductAMM.algo.ts:127
+	// toMint = this.tokensToMintIntial(aXfer.assetAmount, bXfer.assetAmount)
 	frame_dig -2 // bXfer: axfer
 	gtxns AssetAmount
 	frame_dig -1 // aXfer: axfer
 	gtxns AssetAmount
 	callsub tokensToMintIntial
+	frame_bury -6 // toMint: uint64
 	b if0_end
 
 if0_else:
-	// contracts/mock/ConstantProductAMM.algo.ts:128
+	// contracts/mock/ConstantProductAMM.algo.ts:129
 	// toMint = this.tokensToMint(
 	//         TOTAL_SUPPLY - this.app.address.assetBalance(poolAsset),
 	//         this.app.address.assetBalance(aAsset) - aXfer.assetAmount,
@@ -667,21 +668,29 @@ if0_else:
 	callsub tokensToMint
 	frame_bury -6 // toMint: uint64
 
-	// contracts/mock/ConstantProductAMM.algo.ts:136
+if0_end:
+	// contracts/mock/ConstantProductAMM.algo.ts:138
 	// assert(toMint > 0)
 	frame_dig -6 // toMint: uint64
 	int 0
 	>
 	assert
 
-	// contracts/mock/ConstantProductAMM.algo.ts:138
+	// contracts/mock/ConstantProductAMM.algo.ts:139
 	// this.doAxfer(this.txn.sender, poolAsset, toMint)
 	frame_dig -6 // toMint: uint64
 	frame_dig -3 // poolAsset: asset
 	txn Sender
 	callsub doAxfer
 
-if0_end:
+	// contracts/mock/ConstantProductAMM.algo.ts:141
+	// return toMint;
+	frame_dig -6 // toMint: uint64
+	itob
+	byte 0x151f7c75
+	swap
+	concat
+	log
 	retsub
 
 // burn(asset,asset,asset,axfer)void
@@ -722,7 +731,7 @@ burn:
 	proto 7 0
 
 	// well formed burn
-	// contracts/mock/ConstantProductAMM.algo.ts:144
+	// contracts/mock/ConstantProductAMM.algo.ts:146
 	// assert(poolAsset === this.poolToken.value)
 	frame_dig -2 // poolAsset: asset
 	byte 0x70 // "p"
@@ -730,7 +739,7 @@ burn:
 	==
 	assert
 
-	// contracts/mock/ConstantProductAMM.algo.ts:145
+	// contracts/mock/ConstantProductAMM.algo.ts:147
 	// assert(aAsset === this.assetA.value)
 	frame_dig -3 // aAsset: asset
 	byte 0x61 // "a"
@@ -738,7 +747,7 @@ burn:
 	==
 	assert
 
-	// contracts/mock/ConstantProductAMM.algo.ts:146
+	// contracts/mock/ConstantProductAMM.algo.ts:148
 	// assert(bAsset === this.assetB.value)
 	frame_dig -4 // bAsset: asset
 	byte 0x62 // "b"
@@ -747,7 +756,7 @@ burn:
 	assert
 
 	// valid pool axfer
-	// contracts/mock/ConstantProductAMM.algo.ts:149
+	// contracts/mock/ConstantProductAMM.algo.ts:151
 	// verifyTxn(poolXfer, {
 	//       sender: this.txn.sender,
 	//       assetAmount: { greaterThan: 0 },
@@ -782,7 +791,7 @@ burn:
 	==
 	assert
 
-	// contracts/mock/ConstantProductAMM.algo.ts:156
+	// contracts/mock/ConstantProductAMM.algo.ts:158
 	// issued = TOTAL_SUPPLY - (this.app.address.assetBalance(poolAsset) - poolXfer.assetAmount)
 	int 10_000_000_000
 	global CurrentApplicationAddress
@@ -795,7 +804,7 @@ burn:
 	-
 	frame_bury -5 // issued: uint64
 
-	// contracts/mock/ConstantProductAMM.algo.ts:158
+	// contracts/mock/ConstantProductAMM.algo.ts:160
 	// aAmt = this.tokensToBurn(issued, this.app.address.assetBalance(aAsset), poolXfer.assetAmount)
 	frame_dig -1 // poolXfer: axfer
 	gtxns AssetAmount
@@ -807,7 +816,7 @@ burn:
 	callsub tokensToBurn
 	frame_bury -6 // aAmt: uint64
 
-	// contracts/mock/ConstantProductAMM.algo.ts:160
+	// contracts/mock/ConstantProductAMM.algo.ts:162
 	// bAmt = this.tokensToBurn(issued, this.app.address.assetBalance(bAsset), poolXfer.assetAmount)
 	frame_dig -1 // poolXfer: axfer
 	gtxns AssetAmount
@@ -819,21 +828,21 @@ burn:
 	callsub tokensToBurn
 	frame_bury -7 // bAmt: uint64
 
-	// contracts/mock/ConstantProductAMM.algo.ts:162
+	// contracts/mock/ConstantProductAMM.algo.ts:164
 	// this.doAxfer(this.txn.sender, aAsset, aAmt)
 	frame_dig -6 // aAmt: uint64
 	frame_dig -3 // aAsset: asset
 	txn Sender
 	callsub doAxfer
 
-	// contracts/mock/ConstantProductAMM.algo.ts:163
+	// contracts/mock/ConstantProductAMM.algo.ts:165
 	// this.doAxfer(this.txn.sender, bAsset, bAmt)
 	frame_dig -7 // bAmt: uint64
 	frame_dig -4 // bAsset: asset
 	txn Sender
 	callsub doAxfer
 
-	// contracts/mock/ConstantProductAMM.algo.ts:165
+	// contracts/mock/ConstantProductAMM.algo.ts:167
 	// this.ratio.value = this.computeRatio()
 	byte 0x72 // "r"
 	callsub computeRatio
@@ -873,7 +882,7 @@ swap:
 	proto 6 0
 
 	// well formed swap
-	// contracts/mock/ConstantProductAMM.algo.ts:170
+	// contracts/mock/ConstantProductAMM.algo.ts:172
 	// assert(aAsset === this.assetA.value)
 	frame_dig -2 // aAsset: asset
 	byte 0x61 // "a"
@@ -881,7 +890,7 @@ swap:
 	==
 	assert
 
-	// contracts/mock/ConstantProductAMM.algo.ts:171
+	// contracts/mock/ConstantProductAMM.algo.ts:173
 	// assert(bAsset === this.assetB.value)
 	frame_dig -3 // bAsset: asset
 	byte 0x62 // "b"
@@ -889,7 +898,7 @@ swap:
 	==
 	assert
 
-	// contracts/mock/ConstantProductAMM.algo.ts:173
+	// contracts/mock/ConstantProductAMM.algo.ts:175
 	// verifyTxn(swapXfer, {
 	//       assetAmount: { greaterThan: 0 },
 	//       assetReceiver: this.app.address,
@@ -929,7 +938,7 @@ swap:
 	||
 	assert
 
-	// contracts/mock/ConstantProductAMM.algo.ts:180
+	// contracts/mock/ConstantProductAMM.algo.ts:182
 	// outId = swapXfer.xferAsset === aAsset ? aAsset : bAsset
 	frame_dig -1 // swapXfer: axfer
 	gtxns XferAsset
@@ -945,13 +954,13 @@ ternary3_false:
 ternary3_end:
 	frame_bury -4 // outId: asset
 
-	// contracts/mock/ConstantProductAMM.algo.ts:182
+	// contracts/mock/ConstantProductAMM.algo.ts:184
 	// inId = swapXfer.xferAsset
 	frame_dig -1 // swapXfer: axfer
 	gtxns XferAsset
 	frame_bury -5 // inId: asset
 
-	// contracts/mock/ConstantProductAMM.algo.ts:184
+	// contracts/mock/ConstantProductAMM.algo.ts:186
 	// toSwap = this.tokensToSwap(
 	//       swapXfer.assetAmount,
 	//       this.app.address.assetBalance(inId) - swapXfer.assetAmount,
@@ -974,21 +983,21 @@ ternary3_end:
 	callsub tokensToSwap
 	frame_bury -6 // toSwap: uint64
 
-	// contracts/mock/ConstantProductAMM.algo.ts:190
+	// contracts/mock/ConstantProductAMM.algo.ts:192
 	// assert(toSwap > 0)
 	frame_dig -6 // toSwap: uint64
 	int 0
 	>
 	assert
 
-	// contracts/mock/ConstantProductAMM.algo.ts:192
+	// contracts/mock/ConstantProductAMM.algo.ts:194
 	// this.doAxfer(this.txn.sender, outId, toSwap)
 	frame_dig -6 // toSwap: uint64
 	frame_dig -4 // outId: asset
 	txn Sender
 	callsub doAxfer
 
-	// contracts/mock/ConstantProductAMM.algo.ts:194
+	// contracts/mock/ConstantProductAMM.algo.ts:196
 	// this.ratio.value = this.computeRatio()
 	byte 0x72 // "r"
 	callsub computeRatio
@@ -1004,7 +1013,7 @@ create_NoOp:
 call_NoOp:
 	method "set_governor(account)void"
 	method "bootstrap(pay,asset,asset)uint64"
-	method "mint(axfer,axfer,asset,asset,asset)void"
+	method "mint(axfer,axfer,asset,asset,asset)uint64"
 	method "burn(axfer,asset,asset,asset)void"
 	method "swap(axfer,asset,asset)void"
 	txna ApplicationArgs 0

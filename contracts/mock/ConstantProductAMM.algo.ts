@@ -97,7 +97,7 @@ class ConstantProductAMM extends Contract {
     return this.poolToken.value;
   }
 
-  mint(aXfer: AssetTransferTxn, bXfer: AssetTransferTxn, poolAsset: Asset, aAsset: Asset, bAsset: Asset): void {
+  mint(aXfer: AssetTransferTxn, bXfer: AssetTransferTxn, poolAsset: Asset, aAsset: Asset, bAsset: Asset): number {
     /// well formed mint
     assert(aAsset === this.assetA.value);
     assert(bAsset === this.assetB.value);
@@ -106,7 +106,7 @@ class ConstantProductAMM extends Contract {
     /// valid asset A axfer
     verifyTxn(aXfer, {
       sender: this.txn.sender,
-      assetAmount: { greaterThan: 0 },
+      assetAmount: { greaterThanEqualTo: 0 },
       assetReceiver: this.app.address,
       xferAsset: aAsset,
     });
@@ -114,29 +114,31 @@ class ConstantProductAMM extends Contract {
     /// valid asset B axfer
     verifyTxn(bXfer, {
       sender: this.txn.sender,
-      assetAmount: { greaterThan: 0 },
+      assetAmount: { greaterThanEqualTo: 0 },
       assetReceiver: this.app.address,
       xferAsset: bAsset,
     });
 
+    let toMint: number;
     if (
       this.app.address.assetBalance(aAsset) === aXfer.assetAmount &&
       this.app.address.assetBalance(bAsset) === bXfer.assetAmount
     ) {
-      this.tokensToMintIntial(aXfer.assetAmount, bXfer.assetAmount);
+      toMint = this.tokensToMintIntial(aXfer.assetAmount, bXfer.assetAmount);
     } else {
-      const toMint = this.tokensToMint(
+      toMint = this.tokensToMint(
         TOTAL_SUPPLY - this.app.address.assetBalance(poolAsset),
         this.app.address.assetBalance(aAsset) - aXfer.assetAmount,
         this.app.address.assetBalance(bAsset) - bXfer.assetAmount,
         aXfer.assetAmount,
         bXfer.assetAmount
       );
-
-      assert(toMint > 0);
-
-      this.doAxfer(this.txn.sender, poolAsset, toMint);
     }
+
+    assert(toMint > 0);
+    this.doAxfer(this.txn.sender, poolAsset, toMint);
+
+    return toMint;
   }
 
   burn(poolXfer: AssetTransferTxn, poolAsset: Asset, aAsset: Asset, bAsset: Asset): void {

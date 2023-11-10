@@ -82,7 +82,7 @@
       ],
       "desc": "",
       "returns": {
-        "type": "void",
+        "type": "uint64",
         "desc": ""
       }
     },
